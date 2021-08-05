@@ -1,0 +1,13 @@
+{
+	"autodeskProduct":	"Fusion360",
+	"type":	"addin",
+	"id":	"ef2ba718-c341-41fb-9062-1de2689a3160",
+	"author":	"Tim Fonshell",
+	"description":	{
+		"":	"Create a scetch with consecutive numbers along a path."
+	},
+	"version":	"0.0",
+	"runOnStartup":	true,
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
