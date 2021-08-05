@@ -5,6 +5,7 @@ import adsk.core, adsk.fusion, adsk.cam, traceback
 import sys
 
 handlers = []
+selectedEdges = []
 
 def run(context):
     ui = None
@@ -49,12 +50,30 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
         numbersStart = inputs.addValueInput('numbersStart', 'First Number', '', adsk.core.ValueInput.createByReal(1))
         numbersEnd = inputs.addValueInput('numbersEnd', 'Last Number', '', adsk.core.ValueInput.createByReal(3))
         numbersSteps = inputs.addValueInput('numbersSteps', 'Steps', '', adsk.core.ValueInput.createByReal(1))
-        #sketchLine = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
+
+        sketchLineInput = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
+        sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
+        sketchLineInput.setSelectionLimits(1)
         
         # Connect to the execute event
         onExecute = SampleCommandExecuteHandler()
         cmd.execute.add(onExecute)
         handlers.append(onExecute)
+
+        # Connect to OnDestroy handler
+        onDestroy = MyCommandDestroyHandler()
+        cmd.destroy.add(onDestroy)
+        handlers.append(onDestroy) 
+
+        # Connect to select handler
+        onSelect = MySelectHandler()
+        cmd.select.add(onSelect)
+        handlers.append(onSelect)   
+
+        # Connect to unselect handler
+        onUnSelect = MyUnSelectHandler()
+        cmd.unselect.add(onUnSelect)            
+        handlers.append(onUnSelect) 
 
 # Event handler for the execute event
 class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
@@ -74,10 +93,56 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             maxNumber = inputs.itemById('numbersEnd')
             steps = inputs.itemById('numbersSteps')
 
+            selectedPath
+
             drawNumbers(selectedPath, minNumber, maxNumber, steps)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
+
+class MyCommandDestroyHandler(adsk.core.CommandEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        try:
+            # when the command is done, terminate the script
+            # this will release all globals which will remove all event handlers
+            adsk.terminate()
+        except:
+            if ui:
+                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+class MySelectHandler(adsk.core.SelectionEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        try:
+            selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
+            # selectedEdge = adsk.fusion.BRepEdge.cast(args.selection.entity) 
+            if selectedEdge:
+                selectedEdges.append(selectedEdge)
+        except:
+            if ui:
+                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+class MyUnSelectHandler(adsk.core.SelectionEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        try:
+            # selectedEdge = adsk.fusion.BRepEdge.cast(args.selection.entity) 
+            selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
+            if selectedEdge:
+                selectedEdges.remove(selectedEdge)
+        except:
+            if ui:
+                ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 def stop(context):
     ui = None
@@ -112,13 +177,9 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     # Get the root component of the active design.
     rootComp = design.rootComponent
 
-    testSketch = selectedPath.parentSketch
+    sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
 
-    sketchPoints = testSketch.sketchPoints
-
-    pointsList = []
-
-    startPoint = selectedPath.startSketchPoint
+    blaaaa = 5
 
 
 
