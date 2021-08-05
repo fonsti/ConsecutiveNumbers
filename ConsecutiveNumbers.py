@@ -61,7 +61,8 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
-        eventArgs = adsk.core.CommandCreatedEventArgs.cast(args)
+        #eventArgs = adsk.core.CommandCreatedEventArgs.cast(args)
+        eventArgs = adsk.core.CommandEventArgs.cast(args)
         app = adsk.core.Application.get()
         ui  = app.userInterface
 
@@ -76,7 +77,7 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             drawNumbers(selectedPath, minNumber, maxNumber, steps)
         except Exception as e:
             e = sys.exc_info()[0]
-            ui.messageBox(e.args[0])
+            ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
 
 def stop(context):
     ui = None
