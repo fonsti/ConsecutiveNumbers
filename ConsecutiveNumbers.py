@@ -32,6 +32,9 @@ def run(context):
 
         # Add the button to the bottom of the panel
         buttonControl = addInsPanel.controls.addCommand(buttonSample)
+
+        # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
+        adsk.autoTerminate(False)
         
     except:
         if ui:
@@ -109,7 +112,8 @@ class MyCommandDestroyHandler(adsk.core.CommandEventHandler):
         try:
             # when the command is done, terminate the script
             # this will release all globals which will remove all event handlers
-            adsk.terminate()
+            # adsk.terminate()
+            selectedEdges.clear()
         except:
             if ui:
                 ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
@@ -169,7 +173,6 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
-    ui.messageBox('Test button clicked')
 
     design = app.activeProduct
     #doc = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
@@ -179,7 +182,15 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
 
     sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
 
-    blaaaa = 5
+    sketch = sketchLine.parentSketch
+
+    points = sketch.sketchPoints
+    point = adsk.core.Point3D.create(0,0,0)
+    points.add(point)
+    lines = sketch.sketchCurves.sketchLines
+
+    # rectangles = sketch.sketchCurves.sketchLines.addCenterPointRectangle(sketchLine.startSketchPoint, point)
+    rectangle = lines.addCenterPointRectangle(point, sketchLine.endSketchPoint)
 
 
 
