@@ -180,17 +180,32 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     # Get the root component of the active design.
     rootComp = design.rootComponent
 
+    # get selected sketch line, and other objects
     sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
-
     sketch = sketchLine.parentSketch
-
     points = sketch.sketchPoints
-    point = adsk.core.Point3D.create(0,0,0)
-    points.add(point)
     lines = sketch.sketchCurves.sketchLines
 
+    # define the start and end points of the operation
+    startPointGeometry = sketchLine.startSketchPoint.geometry
+    startVector = adsk.core.Vector3D.create(startPointGeometry.x, startPointGeometry.y, startPointGeometry.z)
+    endPointGeometry = sketchLine.endSketchPoint.geometry
+    endVector = adsk.core.Vector3D.create(endPointGeometry.x, endPointGeometry.y, endPointGeometry.z)
+    lineVector = endVector.copy()
+    lineVector.subtract(startVector)
+
+    # create points along line
+    numberOfPoints = 4-1
+    currentPointVector = startVector.copy()
+    partLineVector = lineVector.copy()
+    partLineVector.scaleBy(1/numberOfPoints)
+    for iteration in range(0, numberOfPoints):
+        currentPointVector.add(partLineVector)
+        point = adsk.core.Vector3D.asPoint(currentPointVector)
+        points.add(point)
+
     # rectangles = sketch.sketchCurves.sketchLines.addCenterPointRectangle(sketchLine.startSketchPoint, point)
-    rectangle = lines.addCenterPointRectangle(point, sketchLine.endSketchPoint)
+    # rectangle = lines.addCenterPointRectangle(startPoint, endPoint)
 
 
 
