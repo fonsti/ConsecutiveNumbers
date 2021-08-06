@@ -187,10 +187,8 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     lines = sketch.sketchCurves.sketchLines
 
     # define the start and end points of the operation
-    startPointGeometry = sketchLine.startSketchPoint.geometry
-    startVector = adsk.core.Vector3D.create(startPointGeometry.x, startPointGeometry.y, startPointGeometry.z)
-    endPointGeometry = sketchLine.endSketchPoint.geometry
-    endVector = adsk.core.Vector3D.create(endPointGeometry.x, endPointGeometry.y, endPointGeometry.z)
+    startVector = sketchLine.startSketchPoint.geometry.asVector()
+    endVector = sketchLine.endSketchPoint.geometry.asVector()
     lineVector = endVector.copy()
     lineVector.subtract(startVector)
 
@@ -204,16 +202,4 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
         point = adsk.core.Vector3D.asPoint(currentPointVector)
         points.add(point)
 
-    # rectangles = sketch.sketchCurves.sketchLines.addCenterPointRectangle(sketchLine.startSketchPoint, point)
-    # rectangle = lines.addCenterPointRectangle(startPoint, endPoint)
-
-
-
-    # sketches = rootComp.sketches
-
-    # xyPlane = rootComp.xYConstructionPlane
-
-    # sketch = sketches.add(xyPlane)
-
-    # circles = sketch.sketchCurves.sketchCircles
-    # circle1 = circles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), 2)
+    # TODO: Create Text on points
