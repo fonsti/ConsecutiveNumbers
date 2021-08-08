@@ -197,9 +197,21 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     currentPointVector = startVector.copy()
     partLineVector = lineVector.copy()
     partLineVector.scaleBy(1/numberOfPoints)
+    pointsOnLine = []
+    pointsOnLine.append(adsk.core.Vector3D.asPoint(startVector))
     for iteration in range(0, numberOfPoints):
         currentPointVector.add(partLineVector)
         point = adsk.core.Vector3D.asPoint(currentPointVector)
+        pointsOnLine.append(point)
         points.add(point)
 
     # TODO: Create Text on points
+    skTexts = sketch.sketchTexts
+    for iteration in range(0, len(pointsOnLine)):
+        test = str(iteration)
+        input = skTexts.createInput2(test, 0.5)
+        input.setAsMultiLine(pointsOnLine[iteration],
+        adsk.core.Point3D.create(-0.1,-0.1,0),
+        adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
+        adsk.core.VerticalAlignments.TopVerticalAlignment, 0)
+        skTexts.add(input)
