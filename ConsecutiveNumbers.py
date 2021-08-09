@@ -194,7 +194,7 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     lineVector.subtract(startVector)
 
     # calulate vector for text path
-    angleDeg = 0.0
+    angleDeg = 45.0
     angleRad = (angleDeg * math.pi) / 180.0
     lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
     pathAngle = lineAngle + angleRad
@@ -215,6 +215,9 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
         points.add(point)
 
     # create paths at angel through points
+    skTexts = sketch.sketchTexts
+    extrudes = rootComp.features.extrudeFeatures
+    prof = sketch.profiles
     for iteration in range(0, len(pointsOnLine)):
         currentPointVector = pointsOnLine[iteration].asVector()
         currentStartVector = currentPointVector.copy()
@@ -223,21 +226,48 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
         currentEndVector.subtract(pathVector)
         newLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
 
+        test = str(iteration)
+        input = skTexts.createInput2(test, 0.5)
+        input.setAsAlongPath(newLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
+        input.isVerticalFlip = True
+        input.isHorizontalFlip = True
+        skTexts.add(input)
+
+        mm5 = adsk.core.ValueInput.createByString("-1 mm")
+        distance = adsk.fusion.DistanceExtentDefinition.create(mm5)
+        # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)   
+        extrudeInput = extrudes.createInput(skTexts.item(iteration), adsk.fusion.FeatureOperations.CutFeatureOperation)
+        extrudeInput.setOneSideExtent(distance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
+        # Get the extrusion body
+        extrude1 = extrudes.add(extrudeInput)
+        body1 = extrude1.bodies.item(0)
+        body1.name = "consNumbers"
+
+        # Get the state of the extrusion
+        health = extrude1.healthState
+        if health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState or health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState:
+            message = extrude1.errorOrWarningMessage
+        
+        # Get the state of timeline object
+        timeline = design.timeline
+        timelineObj = timeline.item(timeline.count - 1)
+        health = timelineObj.healthState
+        message = timelineObj.errorOrWarningMessage
 
 
     # TODO: Create Text on points
-    skTexts = sketch.sketchTexts
-    for iteration in range(0, len(pointsOnLine)):
-        test = str(iteration)
+    
+    # for iteration in range(0, len(pointsOnLine)):
+    #     test = str(iteration)
 
-        currentPointVector = pointsOnLine[iteration].asVector()
-        diagonalVector = adsk.core.Vector3D.create(0.5,0.5,0)
-        secondPointVector = currentPointVector.copy()
-        secondPointVector.add(diagonalVector)
+    #     currentPointVector = pointsOnLine[iteration].asVector()
+    #     diagonalVector = adsk.core.Vector3D.create(0.5,0.5,0)
+    #     secondPointVector = currentPointVector.copy()
+    #     secondPointVector.add(diagonalVector)
 
-        input = skTexts.createInput2(test, 0.5)
-        input.setAsMultiLine(pointsOnLine[iteration],
-            secondPointVector.asPoint(),
-            adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
-            adsk.core.VerticalAlignments.TopVerticalAlignment, 0)
-        skTexts.add(input)
+    #     input = skTexts.createInput2(test, 0.5)
+    #     input.setAsMultiLine(pointsOnLine[iteration],
+    #         secondPointVector.asPoint(),
+    #         adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
+    #         adsk.core.VerticalAlignments.TopVerticalAlignment, 0)
+    #     skTexts.add(input)
