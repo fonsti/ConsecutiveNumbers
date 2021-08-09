@@ -3,6 +3,7 @@
 
 import adsk.core, adsk.fusion, adsk.cam, traceback
 import sys
+import math
 
 handlers = []
 selectedEdges = []
@@ -192,6 +193,14 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     lineVector = endVector.copy()
     lineVector.subtract(startVector)
 
+    # calulate vector for text path
+    angleDeg = 0.0
+    angleRad = (angleDeg * math.pi) / 180.0
+    lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
+    pathAngle = lineAngle + angleRad
+    pathVector = adsk.core.Vector3D.create(0.1*math.cos(pathAngle), 0.1*math.sin(pathAngle), 0)
+
+
     # create points along line
     numberOfPoints = 4-1
     currentPointVector = startVector.copy()
@@ -205,13 +214,30 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
         pointsOnLine.append(point)
         points.add(point)
 
+    # create paths at angel through points
+    for iteration in range(0, len(pointsOnLine)):
+        currentPointVector = pointsOnLine[iteration].asVector()
+        currentStartVector = currentPointVector.copy()
+        currentStartVector.add(pathVector)
+        currentEndVector = currentPointVector.copy()
+        currentEndVector.subtract(pathVector)
+        newLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
+
+
+
     # TODO: Create Text on points
     skTexts = sketch.sketchTexts
     for iteration in range(0, len(pointsOnLine)):
         test = str(iteration)
+
+        currentPointVector = pointsOnLine[iteration].asVector()
+        diagonalVector = adsk.core.Vector3D.create(0.5,0.5,0)
+        secondPointVector = currentPointVector.copy()
+        secondPointVector.add(diagonalVector)
+
         input = skTexts.createInput2(test, 0.5)
         input.setAsMultiLine(pointsOnLine[iteration],
-        adsk.core.Point3D.create(-0.1,-0.1,0),
-        adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
-        adsk.core.VerticalAlignments.TopVerticalAlignment, 0)
+            secondPointVector.asPoint(),
+            adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
+            adsk.core.VerticalAlignments.TopVerticalAlignment, 0)
         skTexts.add(input)
