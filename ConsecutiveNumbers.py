@@ -3,7 +3,9 @@
 
 import adsk.core, adsk.fusion, adsk.cam, traceback
 import sys
+import os
 import math
+
 
 handlers = []
 selectedEdges = []
@@ -50,6 +52,9 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
         cmd = eventArgs.command
         inputs = cmd.commandInputs
 
+        app = adsk.core.Application.get()
+        ui  = app.userInterface
+
         # create input commands
         try:
             numbersStart = inputs.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 1)
@@ -65,6 +70,16 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
             distanceValueInput.expression = '-1 mm'
             distanceValueInput.hasMinimumValue = False
             distanceValueInput.hasMaximumValue = False
+
+            textBoxInput = inputs.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
+
+            # dropDownInputFonts = inputs.addDropDownCommandInput("selectedFont", "Font", adsk.core.DropDownStyles.TextListDropDownStyle)
+            # dropDownFontsItems = dropDownInputFonts.listItems
+            # availableFonts = os.listdir(r'C:\\Windows\\fonts')
+            # for item in availableFonts:
+            #     fontName = os.path.splitext(item)[0]
+            #     fontExtension = os.path.splitext(item)[1]
+            #     dropDownFontsItems.add(fontName, False, '')
 
             sketchLineInput = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
             sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
@@ -111,8 +126,9 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             angle = inputs.itemById('angleValue')
             distance = inputs.itemById('extrusionDistanceInput')
             numberHeight = inputs.itemById('numberHeightFloatSpinner')
+            fontInput = inputs.itemById('fontNameInput')
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -183,7 +199,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
@@ -252,7 +268,14 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight):
         input.setAsAlongPath(newLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
         input.isVerticalFlip = textFlip
         input.isHorizontalFlip = textFlip
-        skTexts.add(input)
+        input.fontName = fontInput.text
+        input.textStyle = adsk.fusion.TextStyles.TextStyleBold
+        try:
+            skTexts.add(input)
+        except:
+            input.fontName = 'Arial'
+            skTexts.add(input)
+            
         sketchProfiles.add(skTexts.item(iteration))
 
     mm1 = adsk.core.ValueInput.createByReal(distance.value)
