@@ -55,6 +55,7 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
             numbersStart = inputs.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 1)
             numbersEnd = inputs.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 4)
             numbersSteps = inputs.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
+            numberHeight = inputs.addFloatSpinnerCommandInput("numberHeightFloatSpinner", "Number Height", "mm", -2147483648, 2147483647, 1.0, 5)
             setAngle = inputs.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("90 degree"))
             setAngle.hasMaximumValue = False
             setAngle.hasMinimumValue = False
@@ -109,8 +110,9 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             steps = inputs.itemById('numberStepIntSpinner')
             angle = inputs.itemById('angleValue')
             distance = inputs.itemById('extrusionDistanceInput')
+            numberHeight = inputs.itemById('numberHeightFloatSpinner')
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -181,7 +183,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
@@ -236,6 +238,7 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance):
     skTexts = sketch.sketchTexts
     extrudes = rootComp.features.extrudeFeatures
     prof = sketch.profiles
+    sketchProfiles = adsk.core.ObjectCollection.create()
     for iteration in range(0, len(pointsOnLine)):
         currentPointVector = pointsOnLine[iteration].asVector()
         currentStartVector = currentPointVector.copy()
@@ -245,29 +248,30 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance):
         newLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
 
         test = str(iteration * steps.value + minNumber.value)
-        input = skTexts.createInput2(test, 0.5)
+        input = skTexts.createInput2(test, numberHeight.value)
         input.setAsAlongPath(newLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
         input.isVerticalFlip = textFlip
         input.isHorizontalFlip = textFlip
         skTexts.add(input)
+        sketchProfiles.add(skTexts.item(iteration))
 
-        mm1 = adsk.core.ValueInput.createByReal(distance.value)
-        setDistance = adsk.fusion.DistanceExtentDefinition.create(mm1)
-        # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)   
-        extrudeInput = extrudes.createInput(skTexts.item(iteration), adsk.fusion.FeatureOperations.CutFeatureOperation)
-        extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
-        # Get the extrusion body
-        extrude1 = extrudes.add(extrudeInput)
-        body1 = extrude1.bodies.item(0)
-        body1.name = "consNumbers"
+    mm1 = adsk.core.ValueInput.createByReal(distance.value)
+    setDistance = adsk.fusion.DistanceExtentDefinition.create(mm1)
+    # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)   
+    extrudeInput = extrudes.createInput(sketchProfiles, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
+    # Get the extrusion body
+    extrude1 = extrudes.add(extrudeInput)
+    body1 = extrude1.bodies.item(0)
+    body1.name = "consNumbers"
 
-        # Get the state of the extrusion
-        health = extrude1.healthState
-        if health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState or health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState:
-            message = extrude1.errorOrWarningMessage
-        
-        # Get the state of timeline object
-        timeline = design.timeline
-        timelineObj = timeline.item(timeline.count - 1)
-        health = timelineObj.healthState
-        message = timelineObj.errorOrWarningMessage
+    # Get the state of the extrusion
+    health = extrude1.healthState
+    if health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState or health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState:
+        message = extrude1.errorOrWarningMessage
+    
+    # Get the state of timeline object
+    timeline = design.timeline
+    timelineObj = timeline.item(timeline.count - 1)
+    health = timelineObj.healthState
+    message = timelineObj.errorOrWarningMessage
