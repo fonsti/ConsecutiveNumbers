@@ -51,9 +51,13 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
         inputs = cmd.commandInputs
 
         # create commands
-        numbersStart = inputs.addValueInput('numbersStart', 'First Number', '', adsk.core.ValueInput.createByReal(1))
-        numbersEnd = inputs.addValueInput('numbersEnd', 'Last Number', '', adsk.core.ValueInput.createByReal(3))
-        numbersSteps = inputs.addValueInput('numbersSteps', 'Steps', '', adsk.core.ValueInput.createByReal(1))
+        numbersStart = inputs.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 0)
+        numbersEnd = inputs.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 10)
+        numbersSteps = inputs.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
+        setAgnle = inputs.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("90 degree"))
+        setAgnle.hasMaximumValue = False
+        setAgnle.hasMinimumValue = False
+        setAgnle.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(1,0,0), adsk.core.Vector3D.create(0,0,1))
 
         sketchLineInput = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
         sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
@@ -92,14 +96,12 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
         try:
             inputs = eventArgs.command.commandInputs
 
-            selectedPath = inputs.itemById('sketchLine')
-            minNumber = inputs.itemById('numbersStart')
-            maxNumber = inputs.itemById('numbersEnd')
-            steps = inputs.itemById('numbersSteps')
+            minNumber = inputs.itemById('numberStartIntSpinner')
+            maxNumber = inputs.itemById('numberEndIntSpinner')
+            steps = inputs.itemById('numberStepIntSpinner')
+            angle = inputs.itemById('angleValue')
 
-            selectedPath
-
-            drawNumbers(selectedPath, minNumber, maxNumber, steps)
+            drawNumbers(minNumber, maxNumber, steps, angle)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -170,13 +172,12 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(selectedPath, minNumber, maxNumber, steps):
+def drawNumbers(minNumber, maxNumber, steps, angle):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
 
     design = app.activeProduct
-    #doc = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
 
     # Get the root component of the active design.
     rootComp = design.rootComponent
@@ -194,15 +195,15 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
     lineVector.subtract(startVector)
 
     # calulate vector for text path
-    angleDeg = 45.0
-    angleRad = (angleDeg * math.pi) / 180.0
+    angleRad = angle.value
     lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
     pathAngle = lineAngle + angleRad
     pathVector = adsk.core.Vector3D.create(0.1*math.cos(pathAngle), 0.1*math.sin(pathAngle), 0)
 
 
     # create points along line
-    numberOfPoints = 4-1
+    numberOfPoints = int((maxNumber.value - minNumber.value) / steps.value)
+    #numberOfPoints = 4-1
     currentPointVector = startVector.copy()
     partLineVector = lineVector.copy()
     partLineVector.scaleBy(1/numberOfPoints)
@@ -226,15 +227,15 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
         currentEndVector.subtract(pathVector)
         newLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
 
-        test = str(iteration)
+        test = str(iteration * steps.value + minNumber.value)
         input = skTexts.createInput2(test, 0.5)
         input.setAsAlongPath(newLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
         input.isVerticalFlip = True
         input.isHorizontalFlip = True
         skTexts.add(input)
 
-        mm5 = adsk.core.ValueInput.createByString("-1 mm")
-        distance = adsk.fusion.DistanceExtentDefinition.create(mm5)
+        mm1 = adsk.core.ValueInput.createByString("-1 mm")
+        distance = adsk.fusion.DistanceExtentDefinition.create(mm1)
         # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)   
         extrudeInput = extrudes.createInput(skTexts.item(iteration), adsk.fusion.FeatureOperations.CutFeatureOperation)
         extrudeInput.setOneSideExtent(distance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
@@ -253,21 +254,3 @@ def drawNumbers(selectedPath, minNumber, maxNumber, steps):
         timelineObj = timeline.item(timeline.count - 1)
         health = timelineObj.healthState
         message = timelineObj.errorOrWarningMessage
-
-
-    # TODO: Create Text on points
-    
-    # for iteration in range(0, len(pointsOnLine)):
-    #     test = str(iteration)
-
-    #     currentPointVector = pointsOnLine[iteration].asVector()
-    #     diagonalVector = adsk.core.Vector3D.create(0.5,0.5,0)
-    #     secondPointVector = currentPointVector.copy()
-    #     secondPointVector.add(diagonalVector)
-
-    #     input = skTexts.createInput2(test, 0.5)
-    #     input.setAsMultiLine(pointsOnLine[iteration],
-    #         secondPointVector.asPoint(),
-    #         adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
-    #         adsk.core.VerticalAlignments.TopVerticalAlignment, 0)
-    #     skTexts.add(input)
