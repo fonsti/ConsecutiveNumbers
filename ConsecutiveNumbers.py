@@ -50,18 +50,26 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
         cmd = eventArgs.command
         inputs = cmd.commandInputs
 
-        # create commands
-        numbersStart = inputs.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 0)
-        numbersEnd = inputs.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 10)
-        numbersSteps = inputs.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
-        setAgnle = inputs.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("90 degree"))
-        setAgnle.hasMaximumValue = False
-        setAgnle.hasMinimumValue = False
-        setAgnle.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(1,0,0), adsk.core.Vector3D.create(0,0,1))
+        # create input commands
+        try:
+            numbersStart = inputs.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 1)
+            numbersEnd = inputs.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 4)
+            numbersSteps = inputs.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
+            setAngle = inputs.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("90 degree"))
+            setAngle.hasMaximumValue = False
+            setAngle.hasMinimumValue = False
+            setAngle.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(1,0,0), adsk.core.Vector3D.create(0,0,1))
+            distanceValueInput = inputs.addDistanceValueCommandInput("extrusionDistanceInput", "Ditance", adsk.core.ValueInput.createByString("-1 mm"))
+            distanceValueInput.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(0,1,0))
+            distanceValueInput.expression = '-1 mm'
+            distanceValueInput.hasMinimumValue = False
+            distanceValueInput.hasMaximumValue = False
 
-        sketchLineInput = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
-        sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
-        sketchLineInput.setSelectionLimits(1)
+            sketchLineInput = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
+            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
+            sketchLineInput.setSelectionLimits(1)
+        except Exception as e:
+            test = e
         
         # Connect to the execute event
         onExecute = SampleCommandExecuteHandler()
@@ -100,8 +108,9 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             maxNumber = inputs.itemById('numberEndIntSpinner')
             steps = inputs.itemById('numberStepIntSpinner')
             angle = inputs.itemById('angleValue')
+            distance = inputs.itemById('extrusionDistanceInput')
 
-            drawNumbers(minNumber, maxNumber, steps, angle)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -172,7 +181,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
@@ -196,6 +205,14 @@ def drawNumbers(minNumber, maxNumber, steps, angle):
 
     # calulate vector for text path
     angleRad = angle.value
+    angleRad %= math.pi*2
+    textFlip = False
+    if angleRad <= math.pi/(-2):
+        angleRad += math.pi
+        textFlip = True
+    if angleRad > math.pi/2:
+        angleRad -= math.pi
+        textFlip = True
     lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
     pathAngle = lineAngle + angleRad
     pathVector = adsk.core.Vector3D.create(0.1*math.cos(pathAngle), 0.1*math.sin(pathAngle), 0)
@@ -230,15 +247,15 @@ def drawNumbers(minNumber, maxNumber, steps, angle):
         test = str(iteration * steps.value + minNumber.value)
         input = skTexts.createInput2(test, 0.5)
         input.setAsAlongPath(newLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
-        input.isVerticalFlip = True
-        input.isHorizontalFlip = True
+        input.isVerticalFlip = textFlip
+        input.isHorizontalFlip = textFlip
         skTexts.add(input)
 
-        mm1 = adsk.core.ValueInput.createByString("-1 mm")
-        distance = adsk.fusion.DistanceExtentDefinition.create(mm1)
+        mm1 = adsk.core.ValueInput.createByReal(distance.value)
+        setDistance = adsk.fusion.DistanceExtentDefinition.create(mm1)
         # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)   
         extrudeInput = extrudes.createInput(skTexts.item(iteration), adsk.fusion.FeatureOperations.CutFeatureOperation)
-        extrudeInput.setOneSideExtent(distance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
+        extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
         # Get the extrusion body
         extrude1 = extrudes.add(extrudeInput)
         body1 = extrude1.bodies.item(0)
