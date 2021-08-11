@@ -1,6 +1,12 @@
 #Author-Tim Fonshell
 #Description-Create a scetch with consecutive numbers along a path.
 
+# Attribution:
+# Icon:
+# For example: books, clothing, flyers, posters, invitations, publicity, etc.
+
+# For example: 'image: Flaticon.com'. This cover has been designed using resources from Flaticon.com
+
 import adsk.core, adsk.fusion, adsk.cam, traceback
 import sys
 import os
@@ -20,26 +26,27 @@ def run(context):
         cmdDefs = ui.commandDefinitions
 
         # Create a button command definition.
-        buttonSample = cmdDefs.addButtonDefinition('MyButtonDefId2', 
-            'Python sample button', 
-            'Sample button tolltip', 
-            './Resources/Sample')
+        consNumbersButton = cmdDefs.addButtonDefinition('MyButtonDefId2', 
+            'Consecutive Numbers', 
+            'Creates a row of consecutive numbers on a line and extrudes them.', 
+            './Resources/NumbersIcon')
         
         # Connect to the command created event.
         sampleCommandCreated = sampleCommandCreatedEventHandler()
-        buttonSample.commandCreated.add(sampleCommandCreated)
+        consNumbersButton.commandCreated.add(sampleCommandCreated)
         handlers.append(sampleCommandCreated)
 
         # Get the ADD-INS panel in the model workspace
         addInsPanel = ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
+        solidCreatePanel = ui.allToolbarPanels.itemById('SolidCreatePanel')
 
         # Add the button to the bottom of the panel
-        buttonControl = addInsPanel.controls.addCommand(buttonSample)
+        buttonControl = solidCreatePanel.controls.addCommand(consNumbersButton)
 
         # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
         adsk.autoTerminate(False)
         
-    except:
+    except Exception as e:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
