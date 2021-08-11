@@ -64,33 +64,46 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
 
         # create input commands
         try:
-            numbersStart = inputs.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 1)
-            numbersEnd = inputs.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 4)
-            numbersSteps = inputs.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
-            numberHeight = inputs.addFloatSpinnerCommandInput("numberHeightFloatSpinner", "Number Height", "mm", -2147483648, 2147483647, 1.0, 5)
-            setAngle = inputs.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("90 degree"))
+            chainGroupCmdInput = inputs.addGroupCommandInput("chainGroupCmdInputId", "Numberchain")
+            chainGroupCmdInput.isExpanded = True
+            chainGroupChildren = chainGroupCmdInput.children
+
+            numbersStart = chainGroupChildren.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 1)
+            numbersEnd = chainGroupChildren.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 4)
+            numbersSteps = chainGroupChildren.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
+            setAngle = chainGroupChildren.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("0 degree"))
             setAngle.hasMaximumValue = False
             setAngle.hasMinimumValue = False
             setAngle.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(1,0,0), adsk.core.Vector3D.create(0,0,1))
-            distanceValueInput = inputs.addDistanceValueCommandInput("extrusionDistanceInput", "Ditance", adsk.core.ValueInput.createByString("-1 mm"))
+
+            fontGroupCmdInput = inputs.addGroupCommandInput("fontGroupCmdInputId", "Font")
+            fontGroupCmdInput.isExpanded = False
+            fontGroupChildren = fontGroupCmdInput.children
+
+            numberHeight = fontGroupChildren.addFloatSpinnerCommandInput("numberHeightFloatSpinner", "Number Height", "mm", -2147483648, 2147483647, 1.0, 5)
+            textBoxInput = fontGroupChildren.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
+
+            geometryGroupCmdInput = inputs.addGroupCommandInput("geometryGroupCmdInputId", "Geometry")
+            geometryGroupCmdInput.isExpanded = True
+            geometryGroupChildren = geometryGroupCmdInput.children
+
+            sketchLineInput = geometryGroupChildren.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
+            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
+            sketchLineInput.setSelectionLimits(1)
+
+            distanceValueInput = geometryGroupChildren.addDistanceValueCommandInput("extrusionDistanceInput", "Ditance", adsk.core.ValueInput.createByString("-1 mm"))
             distanceValueInput.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(0,1,0))
             distanceValueInput.expression = '-1 mm'
             distanceValueInput.hasMinimumValue = False
             distanceValueInput.hasMaximumValue = False
+            
+            operationDropdownInput = geometryGroupChildren.addDropDownCommandInput("operationDropdownCmdInput", "Operation", adsk.core.DropDownStyles.LabeledIconDropDownStyle)
+            operationDropDownItems = operationDropdownInput.listItems
+            operationDropDownItems.add("New Body", True, '')
+            operationDropDownItems.add("Join", False, '')
+            operationDropDownItems.add("Cut", False, '')
+            operationDropDownItems.add("Intersect", False, '')
 
-            textBoxInput = inputs.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
-
-            # dropDownInputFonts = inputs.addDropDownCommandInput("selectedFont", "Font", adsk.core.DropDownStyles.TextListDropDownStyle)
-            # dropDownFontsItems = dropDownInputFonts.listItems
-            # availableFonts = os.listdir(r'C:\\Windows\\fonts')
-            # for item in availableFonts:
-            #     fontName = os.path.splitext(item)[0]
-            #     fontExtension = os.path.splitext(item)[1]
-            #     dropDownFontsItems.add(fontName, False, '')
-
-            sketchLineInput = inputs.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
-            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
-            sketchLineInput.setSelectionLimits(1)
         except Exception as e:
             test = e
         
@@ -134,8 +147,9 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             distance = inputs.itemById('extrusionDistanceInput')
             numberHeight = inputs.itemById('numberHeightFloatSpinner')
             fontInput = inputs.itemById('fontNameInput')
+            operationInput = inputs.itemById('operationDropdownCmdInput')
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -196,8 +210,8 @@ def stop(context):
         if cmdDef:
             cmdDef.deleteMe()
         
-        addinsPanel = ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
-        cntrl = addinsPanel.controls.itemById('MyButtonDefId2')
+        solidPanel = ui.allToolbarPanels.itemById('SolidCreatePanel')
+        cntrl = solidPanel.controls.itemById('MyButtonDefId2')
         if cntrl:
             cntrl.deleteMe()
 
@@ -206,7 +220,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
@@ -287,8 +301,15 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
 
     mm1 = adsk.core.ValueInput.createByReal(distance.value)
     setDistance = adsk.fusion.DistanceExtentDefinition.create(mm1)
-    # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)   
-    extrudeInput = extrudes.createInput(sketchProfiles, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation) 
+    operationValue = {
+        "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
+        "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
+        "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
+        "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
+    }
+
+    extrudeInput = extrudes.createInput(sketchProfiles, operationValue[operationInput.selectedItem.name])
     extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
     # Get the extrusion body
     extrude1 = extrudes.add(extrudeInput)
@@ -305,3 +326,5 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     timelineObj = timeline.item(timeline.count - 1)
     health = timelineObj.healthState
     message = timelineObj.errorOrWarningMessage
+
+    # TODO: bla
