@@ -82,6 +82,7 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
 
             numberHeight = fontGroupChildren.addFloatSpinnerCommandInput("numberHeightFloatSpinner", "Number Height", "mm", -2147483648, 2147483647, 1.0, 5)
             textBoxInput = fontGroupChildren.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
+            boldButtonInput = fontGroupChildren.addBoolValueInput("BoldButtonInput", "Bold", True, 'resources/boldButton', True)
 
             geometryGroupCmdInput = inputs.addGroupCommandInput("geometryGroupCmdInputId", "Geometry")
             geometryGroupCmdInput.isExpanded = True
@@ -148,8 +149,9 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
             numberHeight = inputs.itemById('numberHeightFloatSpinner')
             fontInput = inputs.itemById('fontNameInput')
             operationInput = inputs.itemById('operationDropdownCmdInput')
+            boldInput = inputs.itemById('BoldButtonInput')
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput, boldInput)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -220,7 +222,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput, boldInput):
     # Code to react to the event
     app = adsk.core.Application.get()
     ui = app.userInterface
@@ -290,7 +292,8 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         input.isVerticalFlip = textFlip
         input.isHorizontalFlip = textFlip
         input.fontName = fontInput.text
-        input.textStyle = adsk.fusion.TextStyles.TextStyleBold
+        if boldInput.value == True:
+            input.textStyle = adsk.fusion.TextStyles.TextStyleBold
         try:
             skTexts.add(input)
         except:
