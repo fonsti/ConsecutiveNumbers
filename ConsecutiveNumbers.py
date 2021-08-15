@@ -16,42 +16,8 @@ import math
 handlers = []
 selectedEdges = []
 
-def run(context):
-    ui = None
-    try:
-        app = adsk.core.Application.get()
-        ui  = app.userInterface
-
-        # Get the CommandDefinitions collection.
-        cmdDefs = ui.commandDefinitions
-
-        # Create a button command definition.
-        consNumbersButton = cmdDefs.addButtonDefinition('MyButtonDefId2', 
-            'Consecutive Numbers', 
-            'Creates a row of consecutive numbers on a line and extrudes them.', 
-            './Resources/NumbersIcon')
-        
-        # Connect to the command created event.
-        sampleCommandCreated = sampleCommandCreatedEventHandler()
-        consNumbersButton.commandCreated.add(sampleCommandCreated)
-        handlers.append(sampleCommandCreated)
-
-        # Get the ADD-INS panel in the model workspace
-        addInsPanel = ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
-        solidCreatePanel = ui.allToolbarPanels.itemById('SolidCreatePanel')
-
-        # Add the button to the bottom of the panel
-        buttonControl = solidCreatePanel.controls.addCommand(consNumbersButton)
-
-        # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
-        adsk.autoTerminate(False)
-        
-    except Exception as e:
-        if ui:
-            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
-
 # Event handler for the commandCreated
-class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
+class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -64,6 +30,9 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
 
         # create input commands
         try:
+            # TODO: Save last settings for next execution
+            # TODO: Manipulator must be set dynamically
+            # TODO: Add prefix and postfix
             chainGroupCmdInput = inputs.addGroupCommandInput("chainGroupCmdInputId", "Numberchain")
             chainGroupCmdInput.isExpanded = True
             chainGroupChildren = chainGroupCmdInput.children
@@ -106,30 +75,30 @@ class sampleCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
             operationDropDownItems.add("Intersect", False, '')
 
         except Exception as e:
-            test = e
+            numberStr = e
         
         # Connect to the execute event
-        onExecute = SampleCommandExecuteHandler()
+        onExecute = ConsNumbersCommandExecuteHandler()
         cmd.execute.add(onExecute)
         handlers.append(onExecute)
 
         # Connect to OnDestroy handler
-        onDestroy = MyCommandDestroyHandler()
+        onDestroy = ConsNumbersCommandDestroyHandler()
         cmd.destroy.add(onDestroy)
         handlers.append(onDestroy) 
 
         # Connect to select handler
-        onSelect = MySelectHandler()
+        onSelect = ConsNumbersSelectHandler()
         cmd.select.add(onSelect)
         handlers.append(onSelect)   
 
         # Connect to unselect handler
-        onUnSelect = MyUnSelectHandler()
+        onUnSelect = ConsNumbersUnSelectHandler()
         cmd.unselect.add(onUnSelect)            
         handlers.append(onUnSelect) 
 
 # Event handler for the execute event
-class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
+class ConsNumbersCommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -141,22 +110,31 @@ class SampleCommandExecuteHandler(adsk.core.CommandEventHandler):
         try:
             inputs = eventArgs.command.commandInputs
 
-            minNumber = inputs.itemById('numberStartIntSpinner')
-            maxNumber = inputs.itemById('numberEndIntSpinner')
-            steps = inputs.itemById('numberStepIntSpinner')
-            angle = inputs.itemById('angleValue')
-            distance = inputs.itemById('extrusionDistanceInput')
-            numberHeight = inputs.itemById('numberHeightFloatSpinner')
+            minNumberInput = inputs.itemById('numberStartIntSpinner')
+            minNumber = minNumberInput.value
+            maxNumberInput = inputs.itemById('numberEndIntSpinner')
+            maxNumber = maxNumberInput.value
+            stepsInput = inputs.itemById('numberStepIntSpinner')
+            steps = stepsInput.value
+            angleInput = inputs.itemById('angleValue')
+            angle = angleInput.value
+            distanceInput = inputs.itemById('extrusionDistanceInput')
+            distance = distanceInput.value
+            numberHeightInput = inputs.itemById('numberHeightFloatSpinner')
+            numberHeight = numberHeightInput.value
             fontInput = inputs.itemById('fontNameInput')
+            font = fontInput.text
             operationInput = inputs.itemById('operationDropdownCmdInput')
+            operation = operationInput.selectedItem.name
             boldInput = inputs.itemById('BoldButtonInput')
+            bold = boldInput.value
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput, boldInput)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
 
-class MyCommandDestroyHandler(adsk.core.CommandEventHandler):
+class ConsNumbersCommandDestroyHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -171,7 +149,7 @@ class MyCommandDestroyHandler(adsk.core.CommandEventHandler):
             if ui:
                 ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
-class MySelectHandler(adsk.core.SelectionEventHandler):
+class ConsNumbersSelectHandler(adsk.core.SelectionEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -186,7 +164,7 @@ class MySelectHandler(adsk.core.SelectionEventHandler):
             if ui:
                 ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
-class MyUnSelectHandler(adsk.core.SelectionEventHandler):
+class ConsNumbersUnSelectHandler(adsk.core.SelectionEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -201,6 +179,41 @@ class MyUnSelectHandler(adsk.core.SelectionEventHandler):
             if ui:
                 ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui  = app.userInterface
+
+        # Get the CommandDefinitions collection.
+        cmdDefs = ui.commandDefinitions
+
+        # Create a button command definition.
+        consNumbersButton = cmdDefs.addButtonDefinition('ConNumbersButtonDefID2', 
+            'Consecutive Numbers', 
+            'Creates a row of consecutive numbers on a line and extrudes them.', 
+            './Resources/NumbersIcon')
+        
+        # Connect to the command created event.
+        sampleCommandCreated = ConsNumberCommandCreatedEventHandler()
+        consNumbersButton.commandCreated.add(sampleCommandCreated)
+        handlers.append(sampleCommandCreated)
+
+        # Get the ADD-INS panel in the model workspace
+        # addInsPanel = ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
+        solidCreatePanel = ui.allToolbarPanels.itemById('SolidCreatePanel')
+
+        # Add the button to the bottom of the panel
+        buttonControl = solidCreatePanel.controls.addCommand(consNumbersButton)
+
+        # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
+        adsk.autoTerminate(False)
+        
+    except Exception as e:
+        if ui:
+            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
 def stop(context):
     ui = None
     try:
@@ -208,12 +221,12 @@ def stop(context):
         ui  = app.userInterface
 
         # Clean up the UI.
-        cmdDef = ui.commandDefinitions.itemById('MyButtonDefId2')
+        cmdDef = ui.commandDefinitions.itemById('ConNumbersButtonDefID2')
         if cmdDef:
             cmdDef.deleteMe()
         
         solidPanel = ui.allToolbarPanels.itemById('SolidCreatePanel')
-        cntrl = solidPanel.controls.itemById('MyButtonDefId2')
+        cntrl = solidPanel.controls.itemById('ConNumbersButtonDefID2')
         if cntrl:
             cntrl.deleteMe()
 
@@ -222,8 +235,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, fontInput, operationInput, boldInput):
-    # Code to react to the event
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold):
     app = adsk.core.Application.get()
     ui = app.userInterface
 
@@ -245,23 +257,23 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     lineVector.subtract(startVector)
 
     # calulate vector for text path
-    angleRad = angle.value
-    angleRad %= math.pi*2
+    angleRad = angle % math.pi*2
     textFlip = False
+    # Angle adjustment to get the full range of rotation for text
     if angleRad <= math.pi/(-2):
         angleRad += math.pi
         textFlip = True
     if angleRad > math.pi/2:
         angleRad -= math.pi
         textFlip = True
+    # Angle calculation to align text angle to sketch line
     lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
     pathAngle = lineAngle + angleRad
     pathVector = adsk.core.Vector3D.create(0.1*math.cos(pathAngle), 0.1*math.sin(pathAngle), 0)
 
 
     # create points along line
-    numberOfPoints = int((maxNumber.value - minNumber.value) / steps.value)
-    #numberOfPoints = 4-1
+    numberOfPoints = int((maxNumber - minNumber) / steps)
     currentPointVector = startVector.copy()
     partLineVector = lineVector.copy()
     partLineVector.scaleBy(1/numberOfPoints)
@@ -284,27 +296,28 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         currentStartVector.add(pathVector)
         currentEndVector = currentPointVector.copy()
         currentEndVector.subtract(pathVector)
-        newLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
+        textLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
 
-        test = str(iteration * steps.value + minNumber.value)
-        input = skTexts.createInput2(test, numberHeight.value)
-        input.setAsAlongPath(newLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
-        input.isVerticalFlip = textFlip
-        input.isHorizontalFlip = textFlip
-        input.fontName = fontInput.text
-        if boldInput.value == True:
-            input.textStyle = adsk.fusion.TextStyles.TextStyleBold
+        numberStr = str(iteration * steps + minNumber)
+        textInput = skTexts.createInput2(numberStr, numberHeight)
+        textInput.setAsAlongPath(textLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
+        textInput.isVerticalFlip = textFlip
+        textInput.isHorizontalFlip = textFlip
+        textInput.fontName = font
+        if bold == True:
+            textInput.textStyle = adsk.fusion.TextStyles.TextStyleBold
         try:
-            skTexts.add(input)
+            skTexts.add(textInput)
         except:
-            input.fontName = 'Arial'
-            skTexts.add(input)
+            textInput.fontName = 'Arial'
+            skTexts.add(textInput)
             
         sketchProfiles.add(skTexts.item(iteration))
 
-    mm1 = adsk.core.ValueInput.createByReal(distance.value)
-    setDistance = adsk.fusion.DistanceExtentDefinition.create(mm1)
-    # extrude1 = extrudes.addSimple(skTexts.item(iteration), distance, adsk.fusion.FeatureOperations.NewBodyFeatureOperation) 
+    extrusionDistance = adsk.core.ValueInput.createByReal(distance)
+    setDistance = adsk.fusion.DistanceExtentDefinition.create(extrusionDistance)
+    
+    # Dictionary for operation decision
     operationValue = {
         "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
         "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
@@ -312,12 +325,12 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
     }
 
-    extrudeInput = extrudes.createInput(sketchProfiles, operationValue[operationInput.selectedItem.name])
+    extrudeInput = extrudes.createInput(sketchProfiles, operationValue[operation])
     extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
     # Get the extrusion body
     extrude1 = extrudes.add(extrudeInput)
-    body1 = extrude1.bodies.item(0)
-    body1.name = "consNumbers"
+    numbersBody = extrude1.bodies.item(0)
+    numbersBody.name = "consNumbers"
 
     # Get the state of the extrusion
     health = extrude1.healthState
@@ -329,5 +342,3 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     timelineObj = timeline.item(timeline.count - 1)
     health = timelineObj.healthState
     message = timelineObj.errorOrWarningMessage
-
-    # TODO: bla
