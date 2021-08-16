@@ -15,6 +15,7 @@ import math
 
 handlers = []
 selectedEdges = []
+_angelCommandInput = adsk.core.AngleValueCommandInput.cast(None)
 
 # Event handler for the commandCreated
 class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
@@ -30,9 +31,12 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
         # create input commands
         try:
-            # TODO: Save last settings for next execution
-            # TODO: Manipulator must be set dynamically
             # TODO: Add prefix and postfix
+
+            # Global variables
+            global _angelCommandInput
+
+            # Chain definition
             chainGroupCmdInput = inputs.addGroupCommandInput("chainGroupCmdInputId", "Numberchain")
             chainGroupCmdInput.isExpanded = True
             chainGroupChildren = chainGroupCmdInput.children
@@ -40,11 +44,13 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             numbersStart = chainGroupChildren.addIntegerSpinnerCommandInput("numberStartIntSpinner", "Start Number", -2147483648, 2147483647, 1, 1)
             numbersEnd = chainGroupChildren.addIntegerSpinnerCommandInput("numberEndIntSpinner", "End Number", -2147483648, 2147483647, 1, 4)
             numbersSteps = chainGroupChildren.addIntegerSpinnerCommandInput("numberStepIntSpinner", "Steps", -2147483648, 2147483647, 1, 1)
-            setAngle = chainGroupChildren.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("0 degree"))
-            setAngle.hasMaximumValue = False
-            setAngle.hasMinimumValue = False
-            setAngle.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(1,0,0), adsk.core.Vector3D.create(0,0,1))
+            _angelCommandInput = chainGroupChildren.addAngleValueCommandInput("angleValue", "Angle", adsk.core.ValueInput.createByString("0 degree"))
+            _angelCommandInput.hasMaximumValue = False
+            _angelCommandInput.hasMinimumValue = False
+            _angelCommandInput.setManipulator(adsk.core.Point3D.create(0,0,0), adsk.core.Vector3D.create(1,0,0), adsk.core.Vector3D.create(0,0,1))
+            
 
+            # Font definition
             fontGroupCmdInput = inputs.addGroupCommandInput("fontGroupCmdInputId", "Font")
             fontGroupCmdInput.isExpanded = False
             fontGroupChildren = fontGroupCmdInput.children
@@ -53,6 +59,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             textBoxInput = fontGroupChildren.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
             boldButtonInput = fontGroupChildren.addBoolValueInput("BoldButtonInput", "Bold", True, 'resources/boldButton', True)
 
+            # Geometry definition
             geometryGroupCmdInput = inputs.addGroupCommandInput("geometryGroupCmdInputId", "Geometry")
             geometryGroupCmdInput.isExpanded = True
             geometryGroupChildren = geometryGroupCmdInput.children
@@ -155,6 +162,7 @@ class ConsNumbersSelectHandler(adsk.core.SelectionEventHandler):
     def notify(self, args):
         app = adsk.core.Application.get()
         ui = app.userInterface
+        global _angelCommandInput
         try:
             selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
             # selectedEdge = adsk.fusion.BRepEdge.cast(args.selection.entity) 
@@ -257,13 +265,14 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     lineVector.subtract(startVector)
 
     # calulate vector for text path
-    angleRad = angle % math.pi*2
+    # angleRad = angle % math.pi
+    angleRad = angle
     textFlip = False
     # Angle adjustment to get the full range of rotation for text
-    if angleRad <= math.pi/(-2):
+    if angleRad == -math.pi:
         angleRad += math.pi
         textFlip = True
-    if angleRad > math.pi/2:
+    if angleRad >= math.pi:
         angleRad -= math.pi
         textFlip = True
     # Angle calculation to align text angle to sketch line
