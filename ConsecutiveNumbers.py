@@ -31,7 +31,6 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
         # create input commands
         try:
-            # TODO: Add prefix and postfix
             # TODO: align text left, right, center
 
             # Global variables
@@ -59,6 +58,12 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             numberHeight = fontGroupChildren.addFloatSpinnerCommandInput("numberHeightFloatSpinner", "Number Height", "mm", -2147483648, 2147483647, 1.0, 5)
             fontNameInput = fontGroupChildren.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
             boldButtonInput = fontGroupChildren.addBoolValueInput("BoldButtonInput", "Bold", True, 'resources/boldButton', True)
+
+            alignmentDropDownInput = fontGroupChildren.addDropDownCommandInput("AlignmentDropDownInput", "Text Alignment", adsk.core.DropDownStyles.LabeledIconDropDownStyle)
+            alignmentDropdownItems = alignmentDropDownInput.listItems
+            alignmentDropdownItems.add("Left", False, '')
+            alignmentDropdownItems.add("Right", False, '')
+            alignmentDropdownItems.add("Center", True, '')
 
             # Geometry definition
             geometryGroupCmdInput = inputs.addGroupCommandInput("geometryGroupCmdInputId", "Geometry")
@@ -148,8 +153,10 @@ class ConsNumbersCommandExecuteHandler(adsk.core.CommandEventHandler):
             prefix = prefixInput.text
             postfixInput = inputs.itemById("PostfixCommandInput")
             postfix = postfixInput.text
+            alignmentInput = inputs.itemById("AlignmentDropDownInput")
+            alignment = alignmentInput.selectedItem.name
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -256,7 +263,23 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment):
+
+    # Dictionary for operation decision
+    operationValues = {
+        "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
+        "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
+        "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
+        "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
+    }
+
+    # Dictionary for alignmen values
+    alignmentValues = {
+        "Left" : adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
+        "Right" : adsk.core.HorizontalAlignments.RightHorizontalAlignment,
+        "Center" : adsk.core.HorizontalAlignments.CenterHorizontalAlignment
+    }
+
     app = adsk.core.Application.get()
     ui = app.userInterface
 
@@ -315,11 +338,14 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     for iteration in range(0, len(pointsOnLine)):
         currentPointVector = pointsOnLine[iteration].asVector()
         currentStartVector = currentPointVector.copy()
-        currentStartVector.add(pathVector)
+        if alignmentValues[alignment] == alignmentValues["Left"] or alignmentValues[alignment] == alignmentValues["Center"]:
+            currentStartVector.add(pathVector)
         currentEndVector = currentPointVector.copy()
-        currentEndVector.subtract(pathVector)
+        if alignmentValues[alignment] == alignmentValues["Right"] or alignmentValues[alignment] == alignmentValues["Center"]:
+            currentEndVector.subtract(pathVector)
         textLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
 
+        # Build text with pre- and postfix
         numberStr = str(iteration * steps + minNumber)
         if prefix != "":
             if prefix[-1] != " ":
@@ -328,9 +354,9 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
             if postfix[0] != " ":
                 postfix = " " + postfix
         numberStr = prefix + numberStr + postfix
-        
+
         textInput = skTexts.createInput2(numberStr, numberHeight)
-        textInput.setAsAlongPath(textLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
+        textInput.setAsAlongPath(textLine, False, alignmentValues[alignment], 0)
         textInput.isVerticalFlip = textFlip
         textInput.isHorizontalFlip = textFlip
         textInput.fontName = font
@@ -346,16 +372,8 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
 
     extrusionDistance = adsk.core.ValueInput.createByReal(distance)
     setDistance = adsk.fusion.DistanceExtentDefinition.create(extrusionDistance)
-    
-    # Dictionary for operation decision
-    operationValue = {
-        "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
-        "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
-        "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
-        "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
-    }
 
-    extrudeInput = extrudes.createInput(sketchProfiles, operationValue[operation])
+    extrudeInput = extrudes.createInput(sketchProfiles, operationValues[operation])
     extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
     # Get the extrusion body
     extrude1 = extrudes.add(extrudeInput)
