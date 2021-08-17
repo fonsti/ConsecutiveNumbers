@@ -32,6 +32,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
         # create input commands
         try:
             # TODO: Add prefix and postfix
+            # TODO: align text left, right, center
 
             # Global variables
             global _angelCommandInput
@@ -56,7 +57,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             fontGroupChildren = fontGroupCmdInput.children
 
             numberHeight = fontGroupChildren.addFloatSpinnerCommandInput("numberHeightFloatSpinner", "Number Height", "mm", -2147483648, 2147483647, 1.0, 5)
-            textBoxInput = fontGroupChildren.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
+            fontNameInput = fontGroupChildren.addTextBoxCommandInput("fontNameInput", "Font", "Arial", 1, False)
             boldButtonInput = fontGroupChildren.addBoolValueInput("BoldButtonInput", "Bold", True, 'resources/boldButton', True)
 
             # Geometry definition
@@ -80,6 +81,14 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             operationDropDownItems.add("Join", False, '')
             operationDropDownItems.add("Cut", False, '')
             operationDropDownItems.add("Intersect", False, '')
+
+            # Post- Prefix
+            postPrefixGroupInput = inputs.addGroupCommandInput("PostPrefixGroupCmdInput", "Post- and Prefix")
+            postPrefixGroupInput.isExpanded = False
+            postPrefixGroupChildren = postPrefixGroupInput.children
+
+            prefixInput = postPrefixGroupChildren.addTextBoxCommandInput("PrefixCommandInput", "Prefix", "", 1, False)
+            postfixInput = postPrefixGroupChildren.addTextBoxCommandInput("PostfixCommandInput", "Postfix", "", 1, False)
 
         except Exception as e:
             numberStr = e
@@ -135,8 +144,12 @@ class ConsNumbersCommandExecuteHandler(adsk.core.CommandEventHandler):
             operation = operationInput.selectedItem.name
             boldInput = inputs.itemById('BoldButtonInput')
             bold = boldInput.value
+            prefixInput = inputs.itemById("PrefixCommandInput")
+            prefix = prefixInput.text
+            postfixInput = inputs.itemById("PostfixCommandInput")
+            postfix = postfixInput.text
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix)
         except Exception as e:
             e = sys.exc_info()[0]
             ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
@@ -243,7 +256,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix):
     app = adsk.core.Application.get()
     ui = app.userInterface
 
@@ -308,6 +321,14 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         textLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
 
         numberStr = str(iteration * steps + minNumber)
+        if prefix != "":
+            if prefix[-1] != " ":
+                prefix = prefix + " "
+        if postfix != "":
+            if postfix[0] != " ":
+                postfix = " " + postfix
+        numberStr = prefix + numberStr + postfix
+        
         textInput = skTexts.createInput2(numberStr, numberHeight)
         textInput.setAsAlongPath(textLine, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, 0)
         textInput.isVerticalFlip = textFlip
