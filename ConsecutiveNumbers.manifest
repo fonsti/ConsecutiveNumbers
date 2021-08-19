@@ -6,8 +6,8 @@
 	"description":	{
 		"":	"Create a scetch with consecutive numbers along a path."
 	},
-	"version":	"0.0",
+	"version":	"1.1",
 	"runOnStartup":	true,
-	"supportedOS":	"windows|mac",
-	"editEnabled":	true
+	"supportedOS":	"windows",
+	"editEnabled":	false
 }

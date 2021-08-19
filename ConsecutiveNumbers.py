@@ -31,7 +31,8 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
         # create input commands
         try:
-            # TODO: align text left, right, center
+            # TODO: protect against reverse numbers
+            # TODO: Fix angle
 
             # Global variables
             global _angelCommandInput
@@ -301,16 +302,17 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     lineVector.subtract(startVector)
 
     # calulate vector for text path
-    # angleRad = angle % math.pi
-    angleRad = angle
+
+    # Keep angle between 0 and 360° and keep text on same side of line
+    angleRad = angle % (math.pi*2)
+    if angleRad < 0:
+        angleRad += math.p*2
     textFlip = False
-    # Angle adjustment to get the full range of rotation for text
-    if angleRad == -math.pi:
-        angleRad += math.pi
+    isAbovePath = False
+    if angleRad > math.pi/2 and angleRad <= (1.5*math.pi):
+        isAbovePath = True
         textFlip = True
-    if angleRad >= math.pi:
-        angleRad -= math.pi
-        textFlip = True
+
     # Angle calculation to align text angle to sketch line
     lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
     pathAngle = lineAngle + angleRad
@@ -356,7 +358,7 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         numberStr = prefix + numberStr + postfix
 
         textInput = skTexts.createInput2(numberStr, numberHeight)
-        textInput.setAsAlongPath(textLine, False, alignmentValues[alignment], 0)
+        textInput.setAsAlongPath(textLine, isAbovePath, alignmentValues[alignment], 0)
         textInput.isVerticalFlip = textFlip
         textInput.isHorizontalFlip = textFlip
         textInput.fontName = font
