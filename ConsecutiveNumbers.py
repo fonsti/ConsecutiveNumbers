@@ -17,6 +17,21 @@ handlers = []
 selectedEdges = []
 _angelCommandInput = adsk.core.AngleValueCommandInput.cast(None)
 
+# Dictionary for operation decision
+operationValues = {
+    "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
+    "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
+    "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
+    "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
+}
+
+# Dictionary for alignmen values
+alignmentValues = {
+    "Left" : adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
+    "Right" : adsk.core.HorizontalAlignments.RightHorizontalAlignment,
+    "Center" : adsk.core.HorizontalAlignments.CenterHorizontalAlignment
+}
+
 # Event handler for the commandCreated
 class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self):
@@ -73,6 +88,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
             sketchLineInput = geometryGroupChildren.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
             sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
+            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchCurves)
             sketchLineInput.setSelectionLimits(1)
 
             distanceValueInput = geometryGroupChildren.addDistanceValueCommandInput("extrusionDistanceInput", "Ditance", adsk.core.ValueInput.createByString("-1 mm"))
@@ -160,7 +176,9 @@ class ConsNumbersCommandExecuteHandler(adsk.core.CommandEventHandler):
             drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment)
         except Exception as e:
             e = sys.exc_info()[0]
-            ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
+            # message box showing exception
+            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            #ui.messageBox('An Error has Occurred')
 
 class ConsNumbersCommandDestroyHandler(adsk.core.CommandEventHandler):
     def __init__(self):
@@ -186,6 +204,7 @@ class ConsNumbersSelectHandler(adsk.core.SelectionEventHandler):
         global _angelCommandInput
         try:
             selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
+            selectedEdge = adsk.fusion.SketchArc.cast(args.selection.entity)
             # selectedEdge = adsk.fusion.BRepEdge.cast(args.selection.entity) 
             if selectedEdge:
                 selectedEdges.append(selectedEdge)
@@ -266,21 +285,6 @@ def stop(context):
 
 def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment):
 
-    # Dictionary for operation decision
-    operationValues = {
-        "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
-        "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
-        "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
-        "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
-    }
-
-    # Dictionary for alignmen values
-    alignmentValues = {
-        "Left" : adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
-        "Right" : adsk.core.HorizontalAlignments.RightHorizontalAlignment,
-        "Center" : adsk.core.HorizontalAlignments.CenterHorizontalAlignment
-    }
-
     app = adsk.core.Application.get()
     ui = app.userInterface
 
@@ -288,12 +292,40 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
 
     # Get the root component of the active design.
     rootComp = design.rootComponent
+    
+    # identify which kind of edge is used
+    edgeType = selectedEdges[0].objectType
 
     # get selected sketch line, and other objects
-    sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
+    if edgeType == 'adsk::fusion::SketchLine':
+        sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchArc':
+        sketchLine = adsk.fusion.SketchArc.cast(selectedEdges[0])
+    else:
+        # write error message
+        ui.MessageBox('Please select a line or arc.')
+        return
+
     sketch = sketchLine.parentSketch
     points = sketch.sketchPoints
     lines = sketch.sketchCurves.sketchLines
+    
+    # calc the number of points to create
+    numberOfPoints = int((maxNumber - minNumber) / steps)
+    
+    #calculate and create the points for the numbers
+    
+    evaluator = sketchLine.worldGeometry.evaluator
+    for i in range(numberOfPoints):
+        currentPosition = i / numberOfPoints
+        testBool, testStart, testEnd = evaluator.getParameterExtents()
+        testBool2, point = evaluator.getPointAtParameter(currentPosition)
+        #evaluator.getPointAtParameter(currentPosition, point)
+        points.add(point)
+        
+    
+    
+    return 
 
     # define the start and end points of the operation
     startVector = sketchLine.startSketchPoint.geometry.asVector()
@@ -392,3 +424,10 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     timelineObj = timeline.item(timeline.count - 1)
     health = timelineObj.healthState
     message = timelineObj.errorOrWarningMessage
+    
+# reverse order of min and max number
+def reverseOrder(minNumber, maxNumber):
+    temp = minNumber
+    minNumber = maxNumber
+    maxNumber = temp
+    return minNumber, maxNumber
