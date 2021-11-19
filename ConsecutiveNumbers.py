@@ -315,15 +315,21 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     
     #calculate and create the points for the numbers
     
-    evaluator = sketchLine.worldGeometry.evaluator
+    evaluator = sketchLine.geometry.evaluator
+    testBool, testStart, testEnd = evaluator.getParameterExtents()
+    tangents = []
+    vectors = []
     for i in range(numberOfPoints):
         currentPosition = i / numberOfPoints
-        testBool, testStart, testEnd = evaluator.getParameterExtents()
+        currentPosition = testEnd * currentPosition
         testBool2, point = evaluator.getPointAtParameter(currentPosition)
-        #evaluator.getPointAtParameter(currentPosition, point)
+        tangents.append(evaluator.getTangent(currentPosition))
+        #create rotation matrix
+        rotationMatrix = adsk.core.Matrix3D.create()
+        rotationMatrix.setToRotation(angle, point)
+        vectors.append(tangents[i].transformBy(rotationMatrix))
         points.add(point)
         
-    
     
     return 
 
