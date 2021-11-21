@@ -307,28 +307,36 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         return
 
     sketch = sketchLine.parentSketch
+    sketchPlane = sketch.referencePlane
+    sketchNormal  = sketchPlane.geometry.normal
     points = sketch.sketchPoints
     lines = sketch.sketchCurves.sketchLines
     
     # calc the number of points to create
-    numberOfPoints = int((maxNumber - minNumber) / steps)
+    numberOfPoints = int(((maxNumber - minNumber) / steps) + 1)
     
     #calculate and create the points for the numbers
     
     evaluator = sketchLine.geometry.evaluator
     testBool, testStart, testEnd = evaluator.getParameterExtents()
-    tangents = []
-    vectors = []
+    
     for i in range(numberOfPoints):
-        currentPosition = i / numberOfPoints
+        # get the current point
+        currentPosition = i / (numberOfPoints - 1)
         currentPosition = testEnd * currentPosition
         testBool2, point = evaluator.getPointAtParameter(currentPosition)
-        tangents.append(evaluator.getTangent(currentPosition))
-        #create rotation matrix
+        # get the text vector with rotation matrix
         rotationMatrix = adsk.core.Matrix3D.create()
-        rotationMatrix.setToRotation(angle, point)
-        vectors.append(tangents[i].transformBy(rotationMatrix))
-        points.add(point)
+        result = rotationMatrix.setToRotation(angle, sketchNormal, point)
+        result, textVector = evaluator.getTangent(currentPosition)
+        result = textVector.transformBy(rotationMatrix)
+        # calculate second point for sketch line
+        vectorOnCurve = point.asVector()
+        startVector = vectorOnCurve.copy()
+        endVector = vectorOnCurve.copy()
+        result = startVector.add(textVector)
+        result = endVector.subtract(textVector)
+        createLine = lines.addByTwoPoints(startVector.asPoint(), endVector.asPoint())
         
     
     return 
@@ -437,3 +445,10 @@ def reverseOrder(minNumber, maxNumber):
     minNumber = maxNumber
     maxNumber = temp
     return minNumber, maxNumber
+
+# create new line dpending on text alignment
+def createLine(sketchLines, vectorOnCurve, textVecor, textAlignment):
+    if alignmentValues[textAlignment] == alignmentValues["Left"] or alignmentValues[textAlignment] == alignmentValues["Center"]:
+        test = 1
+    if alignmentValues[textAlignment] == alignmentValues["Right"] or alignmentValues[textAlignment] == alignmentValues["Center"]:
+        test = -1
