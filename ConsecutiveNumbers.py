@@ -332,11 +332,10 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         result = textVector.transformBy(rotationMatrix)
         # calculate second point for sketch line
         vectorOnCurve = point.asVector()
-        startVector = vectorOnCurve.copy()
-        endVector = vectorOnCurve.copy()
-        result = startVector.add(textVector)
-        result = endVector.subtract(textVector)
-        createLine = lines.addByTwoPoints(startVector.asPoint(), endVector.asPoint())
+        
+        currentLine = createLine(lines, vectorOnCurve, textVector, alignment)
+        
+        createTextOnLine(sketch, currentLine, textVector, "test", numberHeight, alignment)
         
     
     return 
@@ -448,7 +447,58 @@ def reverseOrder(minNumber, maxNumber):
 
 # create new line dpending on text alignment
 def createLine(sketchLines, vectorOnCurve, textVecor, textAlignment):
+    
+    # calculate start and end vecotors
+    startVector = vectorOnCurve.copy()
+    endVector = vectorOnCurve.copy()
     if alignmentValues[textAlignment] == alignmentValues["Left"] or alignmentValues[textAlignment] == alignmentValues["Center"]:
-        test = 1
+        result = endVector.add(textVecor)
     if alignmentValues[textAlignment] == alignmentValues["Right"] or alignmentValues[textAlignment] == alignmentValues["Center"]:
-        test = -1
+        result = startVector.subtract(textVecor)
+    
+    startPoint = startVector.asPoint()
+    endPoint = endVector.asPoint()
+    
+    newLine = sketchLines.addByTwoPoints(startPoint, endPoint)
+    
+    return newLine
+
+def createTextString(iteration, steps, minNumber, prefix, postfix):
+    numberStr = str(iteration * steps + minNumber)
+    if prefix != "":
+        if prefix[-1] != " ":
+            prefix = prefix + " "
+    if postfix != "":
+        if postfix[0] != " ":
+            postfix = " " + postfix
+    numberStr = prefix + numberStr + postfix
+    return numberStr
+
+def createTextOnLine(sketch, line, textVector, text, textHeight, alignment):
+    sketchTexts = sketch.sketchTexts
+    #get base vector for sketch
+    baseVector = sketch.xDirection
+    textInput = sketchTexts.createInput2(text, textHeight)
+    #calculate angle between text vector and base vector
+    angle = textVector.angleTo(baseVector)
+    flip = calcTextFlip(angle)
+    
+    textInput.setAsAlongPath(line, flip, alignmentValues[alignment], 0)
+    textInput.isVerticalFlip = flip
+    textInput.isHorizontalFlip = flip
+    
+    try:
+        sketchTexts.add(textInput)
+    except:
+        textInput.fontName = 'Arial'
+        sketchTexts.add(textInput)
+        
+# Keep angle between 0 and 360° and keep text on same side of line
+def calcTextFlip(angle):
+    angleRad = angle % (math.pi*2)
+    if angleRad < 0:
+        angleRad += math.p*2
+    textFlip = False
+    if angleRad > math.pi/2 and angleRad <= (1.5*math.pi):
+        textFlip = True
+    return textFlip
