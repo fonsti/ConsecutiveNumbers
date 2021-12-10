@@ -47,7 +47,6 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
         # create input commands
         try:
             # TODO: protect against reverse numbers
-            # TODO: add option for "isAbovePath"
             # TODO: save parameters for next use
 
             # Global variables
@@ -178,8 +177,10 @@ class ConsNumbersCommandExecuteHandler(adsk.core.CommandEventHandler):
             postfix = postfixInput.text
             alignmentInput = inputs.itemById("AlignmentDropDownInput")
             alignment = alignmentInput.selectedItem.name
+            onPathInput = inputs.itemById("onPathDropdownInput")
+            onPath = onPathInput.selectedItem.name
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment, onPath)
         except Exception as e:
             e = sys.exc_info()[0]
             # message box showing exception
@@ -289,7 +290,7 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment):
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment, onPath):
 
     app = adsk.core.Application.get()
     ui = app.userInterface
@@ -343,7 +344,7 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         
         numberStr = createTextString(i, steps, minNumber, prefix, postfix)
         
-        createTextOnLine(sketch, currentLine, textVector, numberStr, numberHeight, alignment)
+        createTextOnLine(sketch, currentLine, textVector, numberStr, numberHeight, alignment, onPath)
         
     
     return 
@@ -481,7 +482,7 @@ def createTextString(iteration, steps, minNumber, prefix, postfix):
     numberStr = prefix + numberStr + postfix
     return numberStr
 
-def createTextOnLine(sketch, line, textVector, text, textHeight, alignment):
+def createTextOnLine(sketch, line, textVector, text, textHeight, alignment, onPath):
     sketchTexts = sketch.sketchTexts
     #get base vector for sketch
     baseVector = sketch.xDirection
@@ -490,7 +491,12 @@ def createTextOnLine(sketch, line, textVector, text, textHeight, alignment):
     angle = textVector.angleTo(baseVector)
     flip, newAlignment = calcTextFlip(angle, alignment)
     
-    textInput.setAsAlongPath(line, flip, alignmentValues[newAlignment], 0)
+    # calc if text is above or below line
+    isAbovePath = onPathToBool(onPath)
+    if flip == True:
+        isAbovePath = not isAbovePath  
+    
+    textInput.setAsAlongPath(line, isAbovePath, alignmentValues[newAlignment], 0)
     textInput.isVerticalFlip = flip
     textInput.isHorizontalFlip = flip
     
@@ -520,3 +526,9 @@ def flipAlignment(alignment):
         return "Left"
     if alignment == "Center":
         return "Center"
+    
+def onPathToBool(onPath):
+    if onPath == "On Top":
+        return True
+    else:
+        return False
