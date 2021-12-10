@@ -48,6 +48,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
         try:
             # TODO: protect against reverse numbers
             # TODO: add option for "isAbovePath"
+            # TODO: save parameters for next use
 
             # Global variables
             global _angelCommandInput
@@ -80,6 +81,11 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             alignmentDropdownItems.add("Left", False, '')
             alignmentDropdownItems.add("Right", False, '')
             alignmentDropdownItems.add("Center", True, '')
+            
+            onPathDropdownInput = fontGroupChildren.addDropDownCommandInput("onPathDropdownInput", "On Path", adsk.core.DropDownStyles.LabeledIconDropDownStyle)
+            onPathDropDownItems = onPathDropdownInput.listItems
+            onPathDropDownItems.add("On Top", True, '')
+            onPathDropDownItems.add("Below", False, '')
 
             # Geometry definition
             geometryGroupCmdInput = inputs.addGroupCommandInput("geometryGroupCmdInputId", "Geometry")
@@ -322,8 +328,8 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     
     for i in range(numberOfPoints):
         # get the current point
-        currentPosition = i / (numberOfPoints - 1)
-        currentPosition = testEnd * currentPosition
+        currentIteration = i / (numberOfPoints - 1)
+        currentPosition = testEnd * currentIteration
         testBool2, point = evaluator.getPointAtParameter(currentPosition)
         # get the text vector with rotation matrix
         rotationMatrix = adsk.core.Matrix3D.create()
@@ -335,7 +341,9 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         
         currentLine = createLine(lines, vectorOnCurve, textVector, alignment)
         
-        createTextOnLine(sketch, currentLine, textVector, "test", numberHeight, alignment)
+        numberStr = createTextString(i, steps, minNumber, prefix, postfix)
+        
+        createTextOnLine(sketch, currentLine, textVector, numberStr, numberHeight, alignment)
         
     
     return 
@@ -447,7 +455,6 @@ def reverseOrder(minNumber, maxNumber):
 
 # create new line dpending on text alignment
 def createLine(sketchLines, vectorOnCurve, textVecor, textAlignment):
-    
     # calculate start and end vecotors
     startVector = vectorOnCurve.copy()
     endVector = vectorOnCurve.copy()
@@ -511,3 +518,5 @@ def flipAlignment(alignment):
         return "Right"
     if alignment == "Right":
         return "Left"
+    if alignment == "Center":
+        return "Center"
