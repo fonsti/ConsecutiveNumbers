@@ -316,6 +316,7 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     sketch = sketchLine.parentSketch
     sketchPlane = sketch.referencePlane
     sketchNormal  = sketchPlane.geometry.normal
+    extrudes = rootComp.features.extrudeFeatures
     points = sketch.sketchPoints
     lines = sketch.sketchCurves.sketchLines
     
@@ -346,6 +347,20 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         
         createTextOnLine(sketch, currentLine, textVector, numberStr, numberHeight, alignment, onPath)
         
+    sketchProfiles = adsk.core.ObjectCollection.create()
+    
+    for textItem in sketch.sketchTexts:
+        sketchProfiles.add(textItem)
+    
+    extrusionDistance = adsk.core.ValueInput.createByReal(distance)
+    setDistance = adsk.fusion.DistanceExtentDefinition.create(extrusionDistance)
+
+    extrudeInput = extrudes.createInput(sketchProfiles, operationValues[operation])
+    extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
+    # Get the extrusion body
+    extrude1 = extrudes.add(extrudeInput)
+    numbersBody = extrude1.bodies.item(0)
+    numbersBody.name = "consNumbers"
     
     return 
 
