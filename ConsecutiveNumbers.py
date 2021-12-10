@@ -47,7 +47,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
         # create input commands
         try:
             # TODO: protect against reverse numbers
-            # TODO: Fix angle
+            # TODO: add option for "isAbovePath"
 
             # Global variables
             global _angelCommandInput
@@ -481,9 +481,9 @@ def createTextOnLine(sketch, line, textVector, text, textHeight, alignment):
     textInput = sketchTexts.createInput2(text, textHeight)
     #calculate angle between text vector and base vector
     angle = textVector.angleTo(baseVector)
-    flip = calcTextFlip(angle)
+    flip, newAlignment = calcTextFlip(angle, alignment)
     
-    textInput.setAsAlongPath(line, flip, alignmentValues[alignment], 0)
+    textInput.setAsAlongPath(line, flip, alignmentValues[newAlignment], 0)
     textInput.isVerticalFlip = flip
     textInput.isHorizontalFlip = flip
     
@@ -494,11 +494,20 @@ def createTextOnLine(sketch, line, textVector, text, textHeight, alignment):
         sketchTexts.add(textInput)
         
 # Keep angle between 0 and 360° and keep text on same side of line
-def calcTextFlip(angle):
+def calcTextFlip(angle, alignment):
     angleRad = angle % (math.pi*2)
     if angleRad < 0:
         angleRad += math.p*2
     textFlip = False
     if angleRad > math.pi/2 and angleRad <= (1.5*math.pi):
         textFlip = True
-    return textFlip
+    else:
+        alignment = flipAlignment(alignment)
+    return textFlip, alignment
+
+#flip alignment of text
+def flipAlignment(alignment):
+    if alignment == "Left":
+        return "Right"
+    if alignment == "Right":
+        return "Left"
