@@ -92,7 +92,6 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             geometryGroupChildren = geometryGroupCmdInput.children
 
             sketchLineInput = geometryGroupChildren.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
-            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
             sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchCurves)
             sketchLineInput.setSelectionLimits(1)
 
@@ -210,8 +209,9 @@ class ConsNumbersSelectHandler(adsk.core.SelectionEventHandler):
         ui = app.userInterface
         global _angelCommandInput
         try:
-            selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
-            selectedEdge = adsk.fusion.SketchArc.cast(args.selection.entity)
+            # selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
+            # selectedEdge = adsk.fusion.SketchArc.cast(args.selection.entity)
+            selectedEdge = adsk.fusion.SketchCurve.cast(args.selection.entity)
             # selectedEdge = adsk.fusion.BRepEdge.cast(args.selection.entity) 
             if selectedEdge:
                 selectedEdges.append(selectedEdge)
@@ -308,6 +308,18 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
     elif edgeType == 'adsk::fusion::SketchArc':
         sketchLine = adsk.fusion.SketchArc.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchConicCurve':
+        sketchLine = adsk.fusion.SketchConicCurve.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchEllipse':
+        sketchLine = adsk.fusion.SketchEllipse.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchEllipticalArc':
+        sketchLine = adsk.fusion.SketchEllipticalArc.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchFittedSpline':
+        sketchLine = adsk.fusion.SketchFittedSpline.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchFixedSpline':
+        sketchLine = adsk.fusion.SketchFixedSpline.cast(selectedEdges[0])
+    # elif edgeType == 'adsk::fusion::SketchCircle':
+    #     sketchLine = adsk.fusion.SketchCircle.cast(selectedEdges[0])
     else:
         # write error message
         ui.MessageBox('Please select a line or arc.')
