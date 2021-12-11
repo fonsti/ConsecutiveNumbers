@@ -17,6 +17,8 @@ handlers = []
 selectedEdges = []
 _angelCommandInput = adsk.core.AngleValueCommandInput.cast(None)
 
+saveTest = "first execution"
+
 # Dictionary for operation decision
 operationValues = {
     "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
@@ -46,7 +48,6 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
         # create input commands
         try:
-            # TODO: protect against reverse numbers
             # TODO: save parameters for next use
 
             # Global variables
@@ -294,6 +295,12 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
 
     app = adsk.core.Application.get()
     ui = app.userInterface
+    
+    # true if numbers go foreward, false if they go backward
+    if maxNumber < minNumber:
+        direction = False
+    else:
+        direction = True
 
     design = app.activeProduct
 
@@ -333,7 +340,10 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     lines = sketch.sketchCurves.sketchLines
     
     # calc the number of points to create
-    numberOfPoints = int(((maxNumber - minNumber) / steps) + 1)
+    if direction:
+        numberOfPoints = int(((maxNumber - minNumber) / steps) + 1)
+    else:
+        numberOfPoints = int(((minNumber - maxNumber) / steps) + 1)
     
     #calculate and create the points for the numbers
     
@@ -342,7 +352,10 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     
     for i in range(numberOfPoints):
         # get the current point
-        currentIteration = i / (numberOfPoints - 1)
+        if direction:
+            currentIteration = i / (numberOfPoints - 1)
+        else:
+            currentIteration = 1 - (i / (numberOfPoints - 1))
         currentPosition = testEnd * currentIteration
         testBool2, point = evaluator.getPointAtParameter(currentPosition)
         # get the text vector with rotation matrix
@@ -355,7 +368,10 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
         
         currentLine = createLine(lines, vectorOnCurve, textVector, alignment)
         
-        numberStr = createTextString(i, steps, minNumber, prefix, postfix)
+        if direction:
+            numberStr = createTextString(i, steps, minNumber, prefix, postfix)
+        else:
+            numberStr = createTextString(i, steps, maxNumber, prefix, postfix)
         
         createTextOnLine(sketch, currentLine, textVector, numberStr, numberHeight, alignment, onPath)
         
@@ -374,106 +390,10 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     numbersBody = extrude1.bodies.item(0)
     numbersBody.name = "consNumbers"
     
+    saveTest = "skript hast been executed before"
+    
     return 
 
-    # define the start and end points of the operation
-    startVector = sketchLine.startSketchPoint.geometry.asVector()
-    endVector = sketchLine.endSketchPoint.geometry.asVector()
-    lineVector = endVector.copy()
-    lineVector.subtract(startVector)
-
-    # calulate vector for text path
-
-    # Keep angle between 0 and 360° and keep text on same side of line
-    angleRad = angle % (math.pi*2)
-    if angleRad < 0:
-        angleRad += math.p*2
-    textFlip = False
-    isAbovePath = False
-    if angleRad > math.pi/2 and angleRad <= (1.5*math.pi):
-        isAbovePath = True
-        textFlip = True
-
-    # Angle calculation to align text angle to sketch line
-    lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
-    pathAngle = lineAngle + angleRad
-    pathVector = adsk.core.Vector3D.create(0.1*math.cos(pathAngle), 0.1*math.sin(pathAngle), 0)
-
-
-    # create points along line
-    numberOfPoints = int((maxNumber - minNumber) / steps)
-    currentPointVector = startVector.copy()
-    partLineVector = lineVector.copy()
-    partLineVector.scaleBy(1/numberOfPoints)
-    pointsOnLine = []
-    pointsOnLine.append(adsk.core.Vector3D.asPoint(startVector))
-    for iteration in range(0, numberOfPoints):
-        currentPointVector.add(partLineVector)
-        point = adsk.core.Vector3D.asPoint(currentPointVector)
-        pointsOnLine.append(point)
-        points.add(point)
-
-    # create paths at angel through points
-    skTexts = sketch.sketchTexts
-    extrudes = rootComp.features.extrudeFeatures
-    prof = sketch.profiles
-    sketchProfiles = adsk.core.ObjectCollection.create()
-    for iteration in range(0, len(pointsOnLine)):
-        currentPointVector = pointsOnLine[iteration].asVector()
-        currentStartVector = currentPointVector.copy()
-        if alignmentValues[alignment] == alignmentValues["Left"] or alignmentValues[alignment] == alignmentValues["Center"]:
-            currentStartVector.add(pathVector)
-        currentEndVector = currentPointVector.copy()
-        if alignmentValues[alignment] == alignmentValues["Right"] or alignmentValues[alignment] == alignmentValues["Center"]:
-            currentEndVector.subtract(pathVector)
-        textLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
-
-        # Build text with pre- and postfix
-        numberStr = str(iteration * steps + minNumber)
-        if prefix != "":
-            if prefix[-1] != " ":
-                prefix = prefix + " "
-        if postfix != "":
-            if postfix[0] != " ":
-                postfix = " " + postfix
-        numberStr = prefix + numberStr + postfix
-
-        textInput = skTexts.createInput2(numberStr, numberHeight)
-        textInput.setAsAlongPath(textLine, isAbovePath, alignmentValues[alignment], 0)
-        textInput.isVerticalFlip = textFlip
-        textInput.isHorizontalFlip = textFlip
-        textInput.fontName = font
-        if bold == True:
-            textInput.textStyle = adsk.fusion.TextStyles.TextStyleBold
-        try:
-            skTexts.add(textInput)
-        except:
-            textInput.fontName = 'Arial'
-            skTexts.add(textInput)
-            
-        sketchProfiles.add(skTexts.item(iteration))
-
-    extrusionDistance = adsk.core.ValueInput.createByReal(distance)
-    setDistance = adsk.fusion.DistanceExtentDefinition.create(extrusionDistance)
-
-    extrudeInput = extrudes.createInput(sketchProfiles, operationValues[operation])
-    extrudeInput.setOneSideExtent(setDistance, adsk.fusion.ExtentDirections.PositiveExtentDirection)
-    # Get the extrusion body
-    extrude1 = extrudes.add(extrudeInput)
-    numbersBody = extrude1.bodies.item(0)
-    numbersBody.name = "consNumbers"
-
-    # Get the state of the extrusion
-    health = extrude1.healthState
-    if health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState or health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState:
-        message = extrude1.errorOrWarningMessage
-    
-    # Get the state of timeline object
-    timeline = design.timeline
-    timelineObj = timeline.item(timeline.count - 1)
-    health = timelineObj.healthState
-    message = timelineObj.errorOrWarningMessage
-    
 # reverse order of min and max number
 def reverseOrder(minNumber, maxNumber):
     temp = minNumber
