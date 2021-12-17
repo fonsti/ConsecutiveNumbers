@@ -17,6 +17,23 @@ handlers = []
 selectedEdges = []
 _angelCommandInput = adsk.core.AngleValueCommandInput.cast(None)
 
+saveTest = "first execution"
+
+# Dictionary for operation decision
+operationValues = {
+    "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
+    "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
+    "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
+    "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
+}
+
+# Dictionary for alignmen values
+alignmentValues = {
+    "Left" : adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
+    "Right" : adsk.core.HorizontalAlignments.RightHorizontalAlignment,
+    "Center" : adsk.core.HorizontalAlignments.CenterHorizontalAlignment
+}
+
 # Event handler for the commandCreated
 class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self):
@@ -31,8 +48,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
         # create input commands
         try:
-            # TODO: protect against reverse numbers
-            # TODO: Fix angle
+            # TODO: save parameters for next use
 
             # Global variables
             global _angelCommandInput
@@ -65,6 +81,11 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             alignmentDropdownItems.add("Left", False, '')
             alignmentDropdownItems.add("Right", False, '')
             alignmentDropdownItems.add("Center", True, '')
+            
+            onPathDropdownInput = fontGroupChildren.addDropDownCommandInput("onPathDropdownInput", "On Path", adsk.core.DropDownStyles.LabeledIconDropDownStyle)
+            onPathDropDownItems = onPathDropdownInput.listItems
+            onPathDropDownItems.add("On Top", True, '')
+            onPathDropDownItems.add("Below", False, '')
 
             # Geometry definition
             geometryGroupCmdInput = inputs.addGroupCommandInput("geometryGroupCmdInputId", "Geometry")
@@ -72,7 +93,7 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
             geometryGroupChildren = geometryGroupCmdInput.children
 
             sketchLineInput = geometryGroupChildren.addSelectionInput('sketchLine', 'Sketch Line', 'Select a sketch line to create the numbers on.')
-            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
+            sketchLineInput.addSelectionFilter(adsk.core.SelectionCommandInput.SketchCurves)
             sketchLineInput.setSelectionLimits(1)
 
             distanceValueInput = geometryGroupChildren.addDistanceValueCommandInput("extrusionDistanceInput", "Ditance", adsk.core.ValueInput.createByString("-1 mm"))
@@ -156,11 +177,15 @@ class ConsNumbersCommandExecuteHandler(adsk.core.CommandEventHandler):
             postfix = postfixInput.text
             alignmentInput = inputs.itemById("AlignmentDropDownInput")
             alignment = alignmentInput.selectedItem.name
+            onPathInput = inputs.itemById("onPathDropdownInput")
+            onPath = onPathInput.selectedItem.name
 
-            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment)
+            drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment, onPath)
         except Exception as e:
             e = sys.exc_info()[0]
-            ui.messageBox('FFFUUUUUUUCK!!!!!!!!!!!!!!!')
+            # message box showing exception
+            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            #ui.messageBox('An Error has Occurred')
 
 class ConsNumbersCommandDestroyHandler(adsk.core.CommandEventHandler):
     def __init__(self):
@@ -185,7 +210,9 @@ class ConsNumbersSelectHandler(adsk.core.SelectionEventHandler):
         ui = app.userInterface
         global _angelCommandInput
         try:
-            selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
+            # selectedEdge = adsk.fusion.SketchLine.cast(args.selection.entity)
+            # selectedEdge = adsk.fusion.SketchArc.cast(args.selection.entity)
+            selectedEdge = adsk.fusion.SketchCurve.cast(args.selection.entity)
             # selectedEdge = adsk.fusion.BRepEdge.cast(args.selection.entity) 
             if selectedEdge:
                 selectedEdges.append(selectedEdge)
@@ -264,114 +291,95 @@ def stop(context):
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment):
-
-    # Dictionary for operation decision
-    operationValues = {
-        "New Body" : adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
-        "Join" : adsk.fusion.FeatureOperations.JoinFeatureOperation,
-        "Cut" : adsk.fusion.FeatureOperations.CutFeatureOperation,
-        "Intersect" : adsk.fusion.FeatureOperations.IntersectFeatureOperation
-    }
-
-    # Dictionary for alignmen values
-    alignmentValues = {
-        "Left" : adsk.core.HorizontalAlignments.LeftHorizontalAlignment,
-        "Right" : adsk.core.HorizontalAlignments.RightHorizontalAlignment,
-        "Center" : adsk.core.HorizontalAlignments.CenterHorizontalAlignment
-    }
+def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font, operation, bold, prefix, postfix, alignment, onPath):
 
     app = adsk.core.Application.get()
     ui = app.userInterface
+    
+    # true if numbers go foreward, false if they go backward
+    if maxNumber < minNumber:
+        direction = False
+    else:
+        direction = True
 
     design = app.activeProduct
 
     # Get the root component of the active design.
     rootComp = design.rootComponent
+    
+    # identify which kind of edge is used
+    edgeType = selectedEdges[0].objectType
 
     # get selected sketch line, and other objects
-    sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
+    if edgeType == 'adsk::fusion::SketchLine':
+        sketchLine = adsk.fusion.SketchLine.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchArc':
+        sketchLine = adsk.fusion.SketchArc.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchConicCurve':
+        sketchLine = adsk.fusion.SketchConicCurve.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchEllipse':
+        sketchLine = adsk.fusion.SketchEllipse.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchEllipticalArc':
+        sketchLine = adsk.fusion.SketchEllipticalArc.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchFittedSpline':
+        sketchLine = adsk.fusion.SketchFittedSpline.cast(selectedEdges[0])
+    elif edgeType == 'adsk::fusion::SketchFixedSpline':
+        sketchLine = adsk.fusion.SketchFixedSpline.cast(selectedEdges[0])
+    # elif edgeType == 'adsk::fusion::SketchCircle':
+    #     sketchLine = adsk.fusion.SketchCircle.cast(selectedEdges[0])
+    else:
+        # write error message
+        ui.MessageBox('Please select a line or arc.')
+        return
+
     sketch = sketchLine.parentSketch
+    sketchPlane = sketch.referencePlane
+    sketchNormal  = sketchPlane.geometry.normal
+    extrudes = rootComp.features.extrudeFeatures
     points = sketch.sketchPoints
     lines = sketch.sketchCurves.sketchLines
-
-    # define the start and end points of the operation
-    startVector = sketchLine.startSketchPoint.geometry.asVector()
-    endVector = sketchLine.endSketchPoint.geometry.asVector()
-    lineVector = endVector.copy()
-    lineVector.subtract(startVector)
-
-    # calulate vector for text path
-
-    # Keep angle between 0 and 360° and keep text on same side of line
-    angleRad = angle % (math.pi*2)
-    if angleRad < 0:
-        angleRad += math.p*2
-    textFlip = False
-    isAbovePath = False
-    if angleRad > math.pi/2 and angleRad <= (1.5*math.pi):
-        isAbovePath = True
-        textFlip = True
-
-    # Angle calculation to align text angle to sketch line
-    lineAngle = lineVector.angleTo(adsk.core.Vector3D.create(0,1,0))
-    pathAngle = lineAngle + angleRad
-    pathVector = adsk.core.Vector3D.create(0.1*math.cos(pathAngle), 0.1*math.sin(pathAngle), 0)
-
-
-    # create points along line
-    numberOfPoints = int((maxNumber - minNumber) / steps)
-    currentPointVector = startVector.copy()
-    partLineVector = lineVector.copy()
-    partLineVector.scaleBy(1/numberOfPoints)
-    pointsOnLine = []
-    pointsOnLine.append(adsk.core.Vector3D.asPoint(startVector))
-    for iteration in range(0, numberOfPoints):
-        currentPointVector.add(partLineVector)
-        point = adsk.core.Vector3D.asPoint(currentPointVector)
-        pointsOnLine.append(point)
-        points.add(point)
-
-    # create paths at angel through points
-    skTexts = sketch.sketchTexts
-    extrudes = rootComp.features.extrudeFeatures
-    prof = sketch.profiles
+    
+    # calc the number of points to create
+    if direction:
+        numberOfPoints = int(((maxNumber - minNumber) / steps) + 1)
+    else:
+        numberOfPoints = int(((minNumber - maxNumber) / steps) + 1)
+    
+    #calculate and create the points for the numbers
+    
+    evaluator = sketchLine.geometry.evaluator
+    testBool, testStart, testEnd = evaluator.getParameterExtents()
+    
+    for i in range(numberOfPoints):
+        # get the current point
+        if direction:
+            currentIteration = i / (numberOfPoints - 1)
+        else:
+            currentIteration = 1 - (i / (numberOfPoints - 1))
+        currentPosition = testEnd * currentIteration
+        testBool2, point = evaluator.getPointAtParameter(currentPosition)
+        # get the text vector with rotation matrix
+        rotationMatrix = adsk.core.Matrix3D.create()
+        result = rotationMatrix.setToRotation(angle, sketchNormal, point)
+        result, textVector = evaluator.getTangent(currentPosition)
+        result = textVector.transformBy(rotationMatrix)
+        # calculate second point for sketch line
+        vectorOnCurve = point.asVector()
+        
+        currentLine = createLine(lines, vectorOnCurve, textVector, alignment)
+        
+        if direction:
+            numberStr = createTextString(i, steps, minNumber, prefix, postfix)
+        else:
+            numberStr = createTextString(i, steps, maxNumber, prefix, postfix)
+        
+        createTextOnLine(sketch, currentLine, textVector, numberStr, numberHeight, alignment, onPath)
+        
     sketchProfiles = adsk.core.ObjectCollection.create()
-    for iteration in range(0, len(pointsOnLine)):
-        currentPointVector = pointsOnLine[iteration].asVector()
-        currentStartVector = currentPointVector.copy()
-        if alignmentValues[alignment] == alignmentValues["Left"] or alignmentValues[alignment] == alignmentValues["Center"]:
-            currentStartVector.add(pathVector)
-        currentEndVector = currentPointVector.copy()
-        if alignmentValues[alignment] == alignmentValues["Right"] or alignmentValues[alignment] == alignmentValues["Center"]:
-            currentEndVector.subtract(pathVector)
-        textLine = lines.addByTwoPoints(currentStartVector.asPoint(), currentEndVector.asPoint())
-
-        # Build text with pre- and postfix
-        numberStr = str(iteration * steps + minNumber)
-        if prefix != "":
-            if prefix[-1] != " ":
-                prefix = prefix + " "
-        if postfix != "":
-            if postfix[0] != " ":
-                postfix = " " + postfix
-        numberStr = prefix + numberStr + postfix
-
-        textInput = skTexts.createInput2(numberStr, numberHeight)
-        textInput.setAsAlongPath(textLine, isAbovePath, alignmentValues[alignment], 0)
-        textInput.isVerticalFlip = textFlip
-        textInput.isHorizontalFlip = textFlip
-        textInput.fontName = font
-        if bold == True:
-            textInput.textStyle = adsk.fusion.TextStyles.TextStyleBold
-        try:
-            skTexts.add(textInput)
-        except:
-            textInput.fontName = 'Arial'
-            skTexts.add(textInput)
-            
-        sketchProfiles.add(skTexts.item(iteration))
-
+    
+    for textItem in sketch.sketchTexts:
+        sketchProfiles.add(textItem)
+    
     extrusionDistance = adsk.core.ValueInput.createByReal(distance)
     setDistance = adsk.fusion.DistanceExtentDefinition.create(extrusionDistance)
 
@@ -381,14 +389,93 @@ def drawNumbers(minNumber, maxNumber, steps, angle, distance, numberHeight, font
     extrude1 = extrudes.add(extrudeInput)
     numbersBody = extrude1.bodies.item(0)
     numbersBody.name = "consNumbers"
-
-    # Get the state of the extrusion
-    health = extrude1.healthState
-    if health == adsk.fusion.FeatureHealthStates.WarningFeatureHealthState or health == adsk.fusion.FeatureHealthStates.ErrorFeatureHealthState:
-        message = extrude1.errorOrWarningMessage
     
-    # Get the state of timeline object
-    timeline = design.timeline
-    timelineObj = timeline.item(timeline.count - 1)
-    health = timelineObj.healthState
-    message = timelineObj.errorOrWarningMessage
+    saveTest = "skript hast been executed before"
+    
+    return 
+
+# reverse order of min and max number
+def reverseOrder(minNumber, maxNumber):
+    temp = minNumber
+    minNumber = maxNumber
+    maxNumber = temp
+    return minNumber, maxNumber
+
+# create new line dpending on text alignment
+def createLine(sketchLines, vectorOnCurve, textVecor, textAlignment):
+    # calculate start and end vecotors
+    startVector = vectorOnCurve.copy()
+    endVector = vectorOnCurve.copy()
+    if alignmentValues[textAlignment] == alignmentValues["Left"] or alignmentValues[textAlignment] == alignmentValues["Center"]:
+        result = endVector.add(textVecor)
+    if alignmentValues[textAlignment] == alignmentValues["Right"] or alignmentValues[textAlignment] == alignmentValues["Center"]:
+        result = startVector.subtract(textVecor)
+    
+    startPoint = startVector.asPoint()
+    endPoint = endVector.asPoint()
+    
+    newLine = sketchLines.addByTwoPoints(startPoint, endPoint)
+    
+    return newLine
+
+def createTextString(iteration, steps, minNumber, prefix, postfix):
+    numberStr = str(iteration * steps + minNumber)
+    if prefix != "":
+        if prefix[-1] != " ":
+            prefix = prefix + " "
+    if postfix != "":
+        if postfix[0] != " ":
+            postfix = " " + postfix
+    numberStr = prefix + numberStr + postfix
+    return numberStr
+
+def createTextOnLine(sketch, line, textVector, text, textHeight, alignment, onPath):
+    sketchTexts = sketch.sketchTexts
+    #get base vector for sketch
+    baseVector = sketch.xDirection
+    textInput = sketchTexts.createInput2(text, textHeight)
+    #calculate angle between text vector and base vector
+    angle = textVector.angleTo(baseVector)
+    flip, newAlignment = calcTextFlip(angle, alignment)
+    
+    # calc if text is above or below line
+    isAbovePath = onPathToBool(onPath)
+    if flip == True:
+        isAbovePath = not isAbovePath  
+    
+    textInput.setAsAlongPath(line, isAbovePath, alignmentValues[newAlignment], 0)
+    textInput.isVerticalFlip = flip
+    textInput.isHorizontalFlip = flip
+    
+    try:
+        sketchTexts.add(textInput)
+    except:
+        textInput.fontName = 'Arial'
+        sketchTexts.add(textInput)
+        
+# Keep angle between 0 and 360° and keep text on same side of line
+def calcTextFlip(angle, alignment):
+    angleRad = angle % (math.pi*2)
+    if angleRad < 0:
+        angleRad += math.p*2
+    textFlip = False
+    if angleRad > math.pi/2 and angleRad <= (1.5*math.pi):
+        textFlip = True
+    else:
+        alignment = flipAlignment(alignment)
+    return textFlip, alignment
+
+#flip alignment of text
+def flipAlignment(alignment):
+    if alignment == "Left":
+        return "Right"
+    if alignment == "Right":
+        return "Left"
+    if alignment == "Center":
+        return "Center"
+    
+def onPathToBool(onPath):
+    if onPath == "On Top":
+        return True
+    else:
+        return False
