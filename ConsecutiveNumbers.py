@@ -116,6 +116,10 @@ class ConsNumberCommandCreatedEventHandler(adsk.core.CommandCreatedEventHandler)
 
             prefixInput = postPrefixGroupChildren.addTextBoxCommandInput("PrefixCommandInput", "Prefix", "", 1, False)
             postfixInput = postPrefixGroupChildren.addTextBoxCommandInput("PostfixCommandInput", "Postfix", "", 1, False)
+            
+            # Donate Beer Button/Link
+            message = '<div align="center">If you like this plugin <a href="https://paypal.me/3DDesignFonshell">donate a beer.</a></div>'
+            inputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)
 
         except Exception as e:
             numberStr = e
